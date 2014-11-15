@@ -22,7 +22,23 @@ else
   editor="sed -i -e '2,${end}s/^pick /squash /'"
 fi
 initial_commit=`git log --pretty=format:%H | tail -1`
-git -c core.editor="$editor" rebase -i $initial_commit
+
+if [ "`git -c 2>&1 | head -1`" = "Unknown option: -c" ]; then
+  # Save old core.editor value
+  old_editor=`git config -l -f .git/config | sed -n 's/^core\.editor=//p'`
+
+  git config core.editor "$editor"
+  git rebase -i $initial_commit
+
+  # Restore core.editor value
+  if [ $old_editor ]; then
+    git config core.editor "$old_editor"
+  else
+    git config --unset core.editor
+  fi
+else
+  git -c core.editor="$editor" rebase -i $initial_commit
+fi
 
 # Do garbage collection
 git reflog expire --expire=now --all
