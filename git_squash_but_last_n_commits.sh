@@ -9,24 +9,29 @@ keep_commits=$1
 
 # Calculate the end commit index
 old_commits=`git log --pretty=oneline | wc -l`
-end=$(($old_commits - $keep_commits))
+end=$(($old_commits - 1 - $keep_commits))
 if [ $end -lt 2 ]; then
   echo "No need to squash" 1>&2
   exit 2
 fi
 
 # Save old core.editor value
-old_editor=`git config -l --local | sed -n 's/^core\.editor=//p'`
+old_editor=`git config -l -f .git/config | sed -n 's/^core\.editor=//p'`
 
 # Do squash
-git config --local core.editor "sed -i '' -e '2,${end}s/^pick /squash /'"
-git rebase -i --root
+if [ `uname -s` = Darwin -a `which sed` = /usr/bin/sed ]; then
+  git config core.editor "sed -i '' -e '2,${end}s/^pick /squash /'"
+else
+  git config core.editor "sed -i -e '2,${end}s/^pick /squash /'"
+fi
+initial_commit=`git log --pretty=format:%H | tail -1`
+git rebase -i $initial_commit
 
 # Restore core.editor value
 if [ $old_editor ]; then
-  git config --local core.editor "$old_editor"
+  git config core.editor "$old_editor"
 else
-  git config --local --unset core.editor
+  git config --unset core.editor
 fi
 
 # Do garbage collection
